@@ -30,6 +30,9 @@ public class MainFrame extends JFrame {
     private JTextField txtWidth;
     private JTextField txtHeight;
 
+    private JTextField txtScale;
+    private JButton btnApplyScale;
+
     private JLabel lblFileName;
     private JLabel lblOriginalSize;
 
@@ -62,7 +65,6 @@ public class MainFrame extends JFrame {
     private void initializeComponents() {
 
         // CABEÇALHO
-
         JPanel headerPanel = new JPanel();
 
         headerPanel.setBorder(
@@ -77,10 +79,8 @@ public class MainFrame extends JFrame {
 
         add(headerPanel, BorderLayout.NORTH);
 
-
         // PAINEL CENTRAL
-
-        JPanel centerPanel = new JPanel(new GridLayout(6, 1, 10, 10));
+        JPanel centerPanel = new JPanel(new GridLayout(8, 1, 10, 10));
 
         centerPanel.setBorder(
                 BorderFactory.createEmptyBorder(20, 80, 20, 80)
@@ -94,9 +94,25 @@ public class MainFrame extends JFrame {
 
         txtHeight = new JTextField("500");
 
+        txtScale = new JTextField("100");
+
+        btnApplyScale = new JButton("Aplicar %");
+
+        JPanel scalePanel = new JPanel(new BorderLayout(10, 0));
+
+        scalePanel.add(txtScale, BorderLayout.CENTER);
+
+        scalePanel.add(btnApplyScale, BorderLayout.EAST);
+
         centerPanel.add(lblFileName);
 
         centerPanel.add(lblOriginalSize);
+
+        centerPanel.add(
+                new JLabel("Escala (%): 50 = metade | 100 = original | 200 = dobro")
+        );
+
+        centerPanel.add(scalePanel);
 
         centerPanel.add(new JLabel("Nova largura (px):"));
 
@@ -108,9 +124,7 @@ public class MainFrame extends JFrame {
 
         add(centerPanel, BorderLayout.CENTER);
 
-
         // BOTÕES
-
         JPanel buttonsPanel = new JPanel(new FlowLayout());
 
         buttonsPanel.setBorder(
@@ -133,13 +147,93 @@ public class MainFrame extends JFrame {
 
         add(buttonsPanel, BorderLayout.SOUTH);
 
-
-        // EVENTOS
-
+// EVENTOS
         btnSelectImage.addActionListener(e -> selectImage());
 
         btnResize.addActionListener(e -> resizeSelectedImage());
 
+// EVENTOS DA ESCALA PERCENTUAL
+        btnApplyScale.addActionListener(e -> applyScale());
+
+        txtScale.addActionListener(e -> applyScale());
+
+    }
+
+    private void applyScale() {
+
+        if (originalImage == null) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Selecione uma imagem primeiro."
+            );
+
+            return;
+        }
+
+        try {
+
+            // Lê a porcentagem informada pelo usuário
+            String input = txtScale.getText()
+                    .trim()
+                    .replace(",", ".");
+
+            double percentage = Double.parseDouble(input);
+
+            // Validação
+            if (!Double.isFinite(percentage) || percentage <= 0) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Informe uma porcentagem válida maior que zero."
+                );
+
+                return;
+            }
+
+            // Calcula o fator de escala
+            double factor = percentage / 100.0;
+
+            double calculatedWidth = originalImage.getWidth() * factor;
+            double calculatedHeight = originalImage.getHeight() * factor;
+
+            // Evita dimensões excessivas
+            if (calculatedWidth > 8192 || calculatedHeight > 8192) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "A resolução máxima permitida é 8192 pixels por dimensão."
+                );
+
+                return;
+            }
+
+            // Calcula as novas dimensões
+            int newWidth = Math.max(
+                    1,
+                    (int) Math.round(calculatedWidth)
+            );
+
+            int newHeight = Math.max(
+                    1,
+                    (int) Math.round(calculatedHeight)
+            );
+
+            // Atualiza os campos automaticamente
+            txtWidth.setText(String.valueOf(newWidth));
+
+            txtHeight.setText(String.valueOf(newHeight));
+
+        } catch (NumberFormatException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Informe uma porcentagem numérica válida.",
+                    "Erro",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+        }
     }
 
     private void selectImage() {
@@ -185,6 +279,8 @@ public class MainFrame extends JFrame {
                 txtHeight.setText(
                         String.valueOf(originalImage.getHeight())
                 );
+
+                txtScale.setText("100");
 
             } catch (IOException ex) {
 
