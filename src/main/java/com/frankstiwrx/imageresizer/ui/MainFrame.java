@@ -21,11 +21,15 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.frankstiwrx.imageresizer.service.BatchProcessor;
+import javax.swing.SwingWorker;
+
 public class MainFrame extends JFrame {
 
     private JButton btnSelectImage;
     private JButton btnResize;
     private JButton btnVariants;
+    private JButton btnBatch;
 
     private JTextField txtWidth;
     private JTextField txtHeight;
@@ -136,12 +140,16 @@ public class MainFrame extends JFrame {
         btnResize = new JButton("Redimensionar");
 
         btnVariants = new JButton("Gerar variações");
+        
+        btnBatch = new JButton("Processar pasta");
 
         btnVariants.setEnabled(false);
 
         buttonsPanel.add(btnSelectImage);
 
         buttonsPanel.add(btnResize);
+        
+        buttonsPanel.add(btnBatch);
 
         buttonsPanel.add(btnVariants);
 
@@ -152,10 +160,11 @@ public class MainFrame extends JFrame {
 
         btnResize.addActionListener(e -> resizeSelectedImage());
 
-// EVENTOS DA ESCALA PERCENTUAL
         btnApplyScale.addActionListener(e -> applyScale());
 
         txtScale.addActionListener(e -> applyScale());
+        
+        btnBatch.addActionListener(e -> processBatch());
 
     }
 
@@ -414,4 +423,116 @@ public class MainFrame extends JFrame {
 
         }
     }
+    
+    private void processBatch() {
+
+    // Solicita a porcentagem de redimensionamento
+    double percentage;
+
+    try {
+
+        String input = JOptionPane.showInputDialog(
+                this,
+                "Informe a escala percentual:\n"
+                + "50 = metade | 100 = original | 200 = dobro",
+                txtScale.getText()
+        );
+
+        if (input == null) {
+            return;
+        }
+
+        percentage = Double.parseDouble(
+                input.trim().replace(",", ".")
+        );
+
+        if (!Double.isFinite(percentage) || percentage <= 0) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Informe uma porcentagem válida maior que zero."
+            );
+
+            return;
+        }
+
+    } catch (NumberFormatException ex) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Porcentagem inválida.",
+                "Erro",
+                JOptionPane.ERROR_MESSAGE
+        );
+
+        return;
+    }
+
+    // Seleciona a pasta de imagens
+    JFileChooser chooser = new JFileChooser();
+
+    chooser.setDialogTitle("Selecionar pasta de imagens");
+
+    chooser.setFileSelectionMode(
+            JFileChooser.DIRECTORIES_ONLY
+    );
+
+    int result = chooser.showOpenDialog(this);
+
+    if (result != JFileChooser.APPROVE_OPTION) {
+        return;
+    }
+
+    File folder = chooser.getSelectedFile();
+
+    btnBatch.setEnabled(false);
+
+    // Processamento em segundo plano
+    SwingWorker<BatchProcessor.BatchResult, Void> worker =
+            new SwingWorker<>() {
+
+        @Override
+        protected BatchProcessor.BatchResult doInBackground()
+                throws Exception {
+
+            return BatchProcessor.resizeFolder(
+                    folder,
+                    percentage
+            );
+        }
+
+        @Override
+        protected void done() {
+
+            btnBatch.setEnabled(true);
+
+            try {
+
+                BatchProcessor.BatchResult result = get();
+
+                JOptionPane.showMessageDialog(
+                        MainFrame.this,
+                        "Processamento concluído!\n\n"
+                        + "Processadas: " + result.processed()
+                        + "\nIgnoradas: " + result.skipped()
+                        + "\nFalhas: " + result.failed()
+                        + "\n\nPasta: redimensionadas"
+                );
+
+            } catch (Exception ex) {
+
+                JOptionPane.showMessageDialog(
+                        MainFrame.this,
+                        "Erro no processamento: "
+                        + ex.getMessage(),
+                        "Erro",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
+    };
+
+    worker.execute();
+}
+    
 }
