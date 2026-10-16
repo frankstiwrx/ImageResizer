@@ -1,12 +1,22 @@
 package com.frankstiwrx.imageresizer.service;
 
+import com.frankstiwrx.imageresizer.model.ExportProfile;
+
 import java.awt.image.BufferedImage;
+
 import java.io.File;
 import java.io.IOException;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
+
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public class ImageVariantGenerator {
 
@@ -14,97 +24,117 @@ public class ImageVariantGenerator {
             File source,
             Path outputFolder,
             int imageId,
-            boolean includeF,
-            boolean includeR) throws IOException {
-
-        if (imageId <= 0 || imageId > 999999) {
-            throw new IllegalArgumentException(
-                    "O identificador deve estar entre 1 e 999999."
-            );
-        }
-
-        if (!includeF && !includeR) {
-            throw new IllegalArgumentException(
-                    "Selecione pelo menos um grupo de variações."
-            );
-        }
+            ExportProfile profile) throws IOException {
 
         BufferedImage original =
                 ImageProcessor.loadImage(source);
 
-        // Gera as duas resoluções necessárias
-        BufferedImage small =
-                ImageProcessor.resizeToFit(
-                        original,
-                        128,
-                        128
-                );
-
-        BufferedImage large =
-                ImageProcessor.resizeToFit(
-                        original,
-                        500,
-                        500
-                );
-
-        // Formata o identificador com seis dígitos
-        String id = String.format("%06d", imageId);
-
-        String baseName = "e_" + id;
-
-        List<String> suffixes = new ArrayList<>();
-
-        if (includeF) {
-            suffixes.add("_f");
-            suffixes.add("_f_l");
-            suffixes.add("_f_ll");
-        }
-
-        if (includeR) {
-            suffixes.add("_r");
-            suffixes.add("_r_l");
-            suffixes.add("_r_ll");
-        }
-
         Files.createDirectories(outputFolder);
 
-        List<Path> generatedFiles = new ArrayList<>();
+        String id = String.format("%06d", imageId);
 
-        // Verifica se os arquivos já existem
-        for (String suffix : suffixes) {
+        String originalName = source.getName();
+
+        int extension = originalName.lastIndexOf('.');
+
+        if (extension > 0) {
+            originalName = originalName.substring(
+                    0,
+                    extension
+            );
+        }
+
+        // Evita caracteres inválidos em nomes de arquivos
+        originalName = originalName.replaceAll(
+                "[^\\p{L}\\p{N}_-]",
+                "_"
+        );
+
+        List<Path> destinations = new ArrayList<>();
+
+        Set<Path> uniqueDestinations = new HashSet<>();
+
+        // Primeiro valida todos os nomes
+        for (ExportProfile.Variant variant :
+                profile.variants()) {
+
+            String fileName = variant.template()
+                    .replace("{id}", id)
+                    .replace("{name}", originalName);
+
+            if (fileName.isBlank()
+                    || fileName.contains("/")
+                    || fileName.contains("\\")
+                    || fileName.contains("..")
+                    || fileName.matches(".*[<>:\"|?*].*")
+                    || !fileName.toLowerCase(Locale.ROOT)
+                            .endsWith(".png")) {
+
+                throw new IOException(
+                        "Nome de arquivo inválido: "
+                        + fileName
+                );
+            }
 
             Path destination = outputFolder.resolve(
-                    baseName + suffix + ".png"
-            );
+                    fileName
+            ).toAbsolutePath().normalize();
+
+            if (!uniqueDestinations.add(destination)) {
+                throw new IOException(
+                        "O perfil gera nomes duplicados: "
+                        + fileName
+                );
+            }
 
             if (Files.exists(destination)) {
                 throw new IOException(
                         "O arquivo já existe: "
-                        + destination.getFileName()
+                        + fileName
                 );
             }
+
+            destinations.add(destination);
         }
 
-        // Gera os arquivos
-        for (String suffix : suffixes) {
+        Map<String, BufferedImage> cache =
+                new HashMap<>();
 
-            boolean isSmall =
-                    suffix.equals("_f") || suffix.equals("_r");
+        List<Path> generated = new ArrayList<>();
 
-            BufferedImage image = isSmall ? small : large;
+        // Gera todas as variações
+        for (int i = 0; i < profile.variants().size(); i++) {
 
-            Path destination = outputFolder.resolve(
-                    baseName + suffix + ".png"
-            );
+            ExportProfile.Variant variant =
+                    profile.variants().get(i);
+
+            String key = variant.width()
+                    + "x"
+                    + variant.height();
+
+            BufferedImage resized = cache.get(key);
+
+            if (resized == null) {
+
+                resized = ImageProcessor.resizeToFit(
+                        original,
+                        variant.width(),
+                        variant.height()
+                );
+
+                cache.put(key, resized);
+            }
+
+            Path destination = destinations.get(i);
 
             ImageProcessor.saveImage(
-                    image,
+                    resized,
                     destination.toFile()
             );
 
-            generatedFiles.add(destination);
+            generated.add(destination);
         }
 
-        return generatedFiles;
+        return generated;
     }
 }
