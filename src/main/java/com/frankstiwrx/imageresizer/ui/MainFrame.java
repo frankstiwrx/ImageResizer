@@ -24,6 +24,10 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import com.frankstiwrx.imageresizer.service.BatchProcessor;
 import javax.swing.SwingWorker;
 
+import com.frankstiwrx.imageresizer.service.ImageVariantGenerator;
+import java.nio.file.Path;
+import java.util.List;
+
 public class MainFrame extends JFrame {
 
     private JButton btnSelectImage;
@@ -143,8 +147,6 @@ public class MainFrame extends JFrame {
         
         btnBatch = new JButton("Processar pasta");
 
-        btnVariants.setEnabled(false);
-
         buttonsPanel.add(btnSelectImage);
 
         buttonsPanel.add(btnResize);
@@ -165,6 +167,8 @@ public class MainFrame extends JFrame {
         txtScale.addActionListener(e -> applyScale());
         
         btnBatch.addActionListener(e -> processBatch());
+        
+        btnVariants.addActionListener(e -> generateVariants());
 
     }
 
@@ -525,6 +529,138 @@ public class MainFrame extends JFrame {
                         MainFrame.this,
                         "Erro no processamento: "
                         + ex.getMessage(),
+                        "Erro",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
+    };
+
+    worker.execute();
+}
+    
+    private void generateVariants() {
+
+    if (selectedFile == null) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Selecione uma imagem primeiro."
+        );
+
+        return;
+    }
+
+    // Solicita o identificador
+    String input = JOptionPane.showInputDialog(
+            this,
+            "Informe o identificador numérico da imagem:\n"
+            + "Exemplo: 108"
+    );
+
+    if (input == null) {
+        return;
+    }
+
+    int imageId;
+
+    try {
+
+        imageId = Integer.parseInt(input.trim());
+
+        if (imageId <= 0 || imageId > 999999) {
+            throw new NumberFormatException();
+        }
+
+    } catch (NumberFormatException ex) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Informe um identificador entre 1 e 999999."
+        );
+
+        return;
+    }
+
+    // Escolha do tipo de variações
+    String[] options = {
+        "Apenas R",
+        "Apenas F",
+        "F e R",
+        "Cancelar"
+    };
+
+    int choice = JOptionPane.showOptionDialog(
+            this,
+            "Quais variações deseja gerar?",
+            "Gerador de variações",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[2]
+    );
+
+    if (choice < 0 || choice == 3) {
+        return;
+    }
+
+    boolean includeR = choice == 0 || choice == 2;
+    boolean includeF = choice == 1 || choice == 2;
+
+    // Define a pasta de saída
+    String formattedId = String.format("%06d", imageId);
+
+    Path outputFolder = selectedFile.toPath()
+            .getParent()
+            .resolve("variacoes_" + formattedId);
+
+    btnVariants.setEnabled(false);
+
+    // Executa a geração em segundo plano
+    SwingWorker<List<Path>, Void> worker = new SwingWorker<>() {
+
+        @Override
+        protected List<Path> doInBackground() throws Exception {
+
+            return ImageVariantGenerator.generate(
+                    selectedFile,
+                    outputFolder,
+                    imageId,
+                    includeF,
+                    includeR
+            );
+        }
+
+        @Override
+        protected void done() {
+
+            btnVariants.setEnabled(true);
+
+            try {
+
+                List<Path> generated = get();
+
+                JOptionPane.showMessageDialog(
+                        MainFrame.this,
+                        "Variações geradas com sucesso!\n\n"
+                        + "Arquivos criados: "
+                        + generated.size()
+                        + "\n\nPasta:\n"
+                        + outputFolder
+                );
+
+            } catch (Exception ex) {
+
+                Throwable cause = ex.getCause();
+
+                String message = cause != null
+                        ? cause.getMessage()
+                        : ex.getMessage();
+
+                JOptionPane.showMessageDialog(
+                        MainFrame.this,
+                        "Erro ao gerar variações:\n" + message,
                         "Erro",
                         JOptionPane.ERROR_MESSAGE
                 );

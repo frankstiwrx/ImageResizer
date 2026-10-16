@@ -86,4 +86,71 @@ public class ImageProcessor {
             throw new IOException("Não foi possível salvar a imagem.");
         }
     }
+    public static BufferedImage resizeToFit(
+        BufferedImage original,
+        int targetWidth,
+        int targetHeight) {
+
+    if (targetWidth <= 0 || targetHeight <= 0) {
+        throw new IllegalArgumentException(
+                "As dimensões devem ser maiores que zero."
+        );
+    }
+
+    // Calcula a escala proporcional
+    double scaleX = (double) targetWidth / original.getWidth();
+    double scaleY = (double) targetHeight / original.getHeight();
+
+    double scale = Math.min(scaleX, scaleY);
+
+    int newWidth = Math.max(
+            1,
+            (int) Math.round(original.getWidth() * scale)
+    );
+
+    int newHeight = Math.max(
+            1,
+            (int) Math.round(original.getHeight() * scale)
+    );
+
+    // Cria uma imagem com fundo transparente
+    BufferedImage canvas = new BufferedImage(
+            targetWidth,
+            targetHeight,
+            BufferedImage.TYPE_INT_ARGB
+    );
+
+    Graphics2D graphics = canvas.createGraphics();
+
+    try {
+
+        graphics.setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC
+        );
+
+        graphics.setRenderingHint(
+                RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY
+        );
+
+        // Centraliza a imagem
+        int x = (targetWidth - newWidth) / 2;
+        int y = (targetHeight - newHeight) / 2;
+
+        graphics.drawImage(
+                original,
+                x,
+                y,
+                newWidth,
+                newHeight,
+                null
+        );
+
+    } finally {
+        graphics.dispose();
+    }
+
+    return canvas;
+}
 }
