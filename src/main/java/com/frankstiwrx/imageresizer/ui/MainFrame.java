@@ -39,6 +39,17 @@ import javax.swing.JTextArea;
 import javax.swing.ImageIcon;
 import javax.swing.SwingConstants;
 
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.JScrollPane;
+import javax.swing.JComboBox;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Locale;
+
 public class MainFrame extends JFrame {
 
     private JButton btnSelectImage;
@@ -585,135 +596,347 @@ public class MainFrame extends JFrame {
         worker.execute();
     }
 
-    private void manageProfiles() {
+private void manageProfiles() {
 
-        String name = JOptionPane.showInputDialog(
-                this,
-                "Nome do perfil:\n"
-                + "Informe um nome novo ou um perfil personalizado existente.",
-                "Gerenciar perfis",
-                JOptionPane.QUESTION_MESSAGE
+    try {
+
+        // Carrega os perfis disponíveis
+        List<ExportProfile> profiles =
+                ProfileService.listProfiles();
+
+        // Perfis nativos da aplicação
+        Set<String> defaultProfiles = Set.of(
+                "emblemas - 6 variacoes",
+                "emblemas - apenas r",
+                "emblemas - apenas f",
+                "icones",
+                "logos web",
+                "android - icones"
         );
 
-        if (name == null || name.isBlank()) {
+        // Lista de perfis personalizados
+        List<String> options = new ArrayList<>();
+
+        options.add("+ Criar novo perfil");
+
+        for (ExportProfile profile : profiles) {
+
+            if (!defaultProfiles.contains(
+                    profile.name().toLowerCase(Locale.ROOT))) {
+
+                options.add(profile.name());
+            }
+        }
+
+        // Seleção do perfil
+        String selectedOption = (String)
+                JOptionPane.showInputDialog(
+                        this,
+                        "O que deseja fazer?",
+                        "Gerenciar perfis",
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        options.toArray(),
+                        options.get(0)
+                );
+
+        if (selectedOption == null) {
             return;
         }
 
-        name = name.trim();
+        String profileName;
 
-        // Protege os perfis padrão da aplicação
+        ExportProfile existingProfile = null;
 
-String[] defaultProfiles = {
-    "Emblemas - 6 variacoes",
-    "Emblemas - Apenas R",
-    "Emblemas - Apenas F",
-    "Icones",
-    "Logos Web",
-    "Android - Icones"
-};
+        // Criar novo perfil
+        if (selectedOption.equals("+ Criar novo perfil")) {
 
-for (String defaultProfile : defaultProfiles) {
+            profileName = JOptionPane.showInputDialog(
+                    this,
+                    "Informe o nome do novo perfil:",
+                    "Novo perfil",
+                    JOptionPane.QUESTION_MESSAGE
+            );
 
-    if (name.equalsIgnoreCase(defaultProfile)) {
+            if (profileName == null
+                    || profileName.isBlank()) {
+                return;
+            }
 
-        JOptionPane.showMessageDialog(
-                this,
-                "Esse é um perfil padrão da aplicação.\n"
-                + "Escolha outro nome para criar seu perfil."
-        );
+            profileName = profileName.trim();
 
-        return;
-    }
-}
+            // Impede nomes iguais aos perfis existentes
+            for (ExportProfile profile : profiles) {
 
-        String example
-                = "{name}_128.png|128|128\n"
-                + "{name}_256.png|256|256\n"
-                + "{name}_512.png|512|512";
+                if (profile.name().equalsIgnoreCase(profileName)) {
 
-        try {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Já existe um perfil com esse nome."
+                    );
 
-            for (ExportProfile profile
-                    : ProfileService.listProfiles()) {
-
-                if (profile.name().equalsIgnoreCase(name)) {
-
-                    StringBuilder existing = new StringBuilder();
-
-                    for (ExportProfile.Variant variant
-                            : profile.variants()) {
-
-                        existing.append(variant.template())
-                                .append("|")
-                                .append(variant.width())
-                                .append("|")
-                                .append(variant.height())
-                                .append("\n");
-                    }
-
-                    example = existing.toString();
-                    break;
+                    return;
                 }
             }
 
-        } catch (IOException ex) {
+        } else {
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    ex.getMessage(),
-                    "Erro",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            profileName = selectedOption;
 
-            return;
+            for (ExportProfile profile : profiles) {
+
+                if (profile.name().equals(profileName)) {
+
+                    existingProfile = profile;
+
+                    break;
+                }
+            }
         }
 
-        JTextArea textArea = new JTextArea(example, 12, 45);
+        // MODELO DA TABELA
 
-        JScrollPane scrollPane = new JScrollPane(textArea);
+        String[] columns = {
+            "Nome do arquivo",
+            "Largura (px)",
+            "Altura (px)"
+        };
 
-        int option = JOptionPane.showConfirmDialog(
-                this,
+        DefaultTableModel tableModel =
+                new DefaultTableModel(columns, 0) {
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return true;
+            }
+        };
+
+        // Carrega as variações existentes
+        if (existingProfile != null) {
+
+            for (ExportProfile.Variant variant :
+                    existingProfile.variants()) {
+
+                tableModel.addRow(new Object[]{
+                    variant.template(),
+                    variant.width(),
+                    variant.height()
+                });
+            }
+
+        } else {
+
+            // Variações iniciais para novos perfis
+            tableModel.addRow(new Object[]{
+                "{name}_128.png", 128, 128
+            });
+
+            tableModel.addRow(new Object[]{
+                "{name}_256.png", 256, 256
+            });
+
+            tableModel.addRow(new Object[]{
+                "{name}_512.png", 512, 512
+            });
+        }
+
+        // CRIAÇÃO DA TABELA
+
+        JTable table = new JTable(tableModel);
+
+        table.setRowHeight(30);
+
+        table.setFillsViewportHeight(true);
+
+        table.getTableHeader().setReorderingAllowed(false);
+
+        table.setSelectionMode(
+                javax.swing.ListSelectionModel.SINGLE_SELECTION
+        );
+
+        table.getColumnModel()
+                .getColumn(0)
+                .setPreferredWidth(270);
+
+        table.getColumnModel()
+                .getColumn(1)
+                .setPreferredWidth(100);
+
+        table.getColumnModel()
+                .getColumn(2)
+                .setPreferredWidth(100);
+
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        scrollPane.setPreferredSize(
+                new Dimension(550, 260)
+        );
+
+        // BOTÕES
+
+        JButton btnAdd = new JButton("+ Adicionar variação");
+
+        JButton btnRemove = new JButton("- Remover selecionada");
+
+        btnAdd.addActionListener(e -> {
+
+            if (tableModel.getRowCount() >= 100) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "O limite é de 100 variações por perfil."
+                );
+
+                return;
+            }
+
+            tableModel.addRow(new Object[]{
+                "{name}_nova.png", 256, 256
+            });
+
+            int lastRow = tableModel.getRowCount() - 1;
+
+            table.setRowSelectionInterval(lastRow, lastRow);
+
+            table.scrollRectToVisible(
+                    table.getCellRect(lastRow, 0, true)
+            );
+        });
+
+        btnRemove.addActionListener(e -> {
+
+            int selectedRow = table.getSelectedRow();
+
+            if (selectedRow == -1) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Selecione uma variação para remover."
+                );
+
+                return;
+            }
+
+            tableModel.removeRow(selectedRow);
+        });
+
+        JPanel buttonPanel = new JPanel(
+                new FlowLayout(FlowLayout.LEFT)
+        );
+
+        buttonPanel.add(btnAdd);
+        buttonPanel.add(btnRemove);
+
+        // INSTRUÇÕES
+
+        JLabel instructions = new JLabel(
+                "<html>"
+                + "<b>Variáveis disponíveis:</b><br>"
+                + "{name} = Nome da imagem original<br>"
+                + "{id} = Identificador numérico<br><br>"
+                + "Clique duas vezes em uma célula para editar."
+                + "</html>"
+        );
+
+        instructions.setBorder(
+                BorderFactory.createEmptyBorder(10, 5, 10, 5)
+        );
+
+        // PAINEL PRINCIPAL
+
+        JPanel editorPanel = new JPanel(new BorderLayout(10, 10));
+
+        editorPanel.add(
                 scrollPane,
-                "Variações: nome|largura|altura",
+                BorderLayout.CENTER
+        );
+
+        editorPanel.add(
+                buttonPanel,
+                BorderLayout.NORTH
+        );
+
+        editorPanel.add(
+                instructions,
+                BorderLayout.SOUTH
+        );
+
+        // JANELA DE EDIÇÃO
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                editorPanel,
+                "Editar perfil: " + profileName,
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE
         );
 
-        if (option != JOptionPane.OK_OPTION) {
+        if (result != JOptionPane.OK_OPTION) {
             return;
         }
 
+        // Finaliza qualquer edição ainda aberta
+        if (table.isEditing()) {
+            if (!table.getCellEditor().stopCellEditing()) {
+                return;
+            }
+        }
+
+        // VALIDAÇÃO E SALVAMENTO
+
+        List<ExportProfile.Variant> variants =
+                new ArrayList<>();
+
         try {
 
-            List<ExportProfile.Variant> variants
-                    = new ArrayList<>();
+            if (tableModel.getRowCount() == 0) {
 
-            String[] lines = textArea.getText().split("\\R");
+                throw new IllegalArgumentException(
+                        "Adicione pelo menos uma variação."
+                );
+            }
 
-            for (String line : lines) {
+            Set<String> usedNames = new HashSet<>();
 
-                if (line.isBlank()) {
-                    continue;
-                }
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
 
-                String[] parts = line.split("\\|", -1);
-
-                if (parts.length != 3) {
-                    throw new IllegalArgumentException(
-                            "Formato inválido: " + line
-                    );
-                }
-
-                String template = parts[0].trim();
+                String template = String.valueOf(
+                        tableModel.getValueAt(i, 0)
+                ).trim();
 
                 int width = Integer.parseInt(
-                        parts[1].trim()
+                        String.valueOf(
+                                tableModel.getValueAt(i, 1)
+                        ).trim()
                 );
 
                 int height = Integer.parseInt(
-                        parts[2].trim()
+                        String.valueOf(
+                                tableModel.getValueAt(i, 2)
+                        ).trim()
                 );
+
+                // Validação do nome
+                if (template.isBlank()
+                        || !template.toLowerCase(Locale.ROOT)
+                                .endsWith(".png")
+                        || template.contains("/")
+                        || template.contains("\\")
+                        || template.contains("..")
+                        || template.matches(".*[<>:\"|?*].*")) {
+
+                    throw new IllegalArgumentException(
+                            "Nome inválido na linha " + (i + 1)
+                    );
+                }
+
+                if (!usedNames.add(
+                        template.toLowerCase(Locale.ROOT))) {
+
+                    throw new IllegalArgumentException(
+                            "Nome duplicado na linha " + (i + 1)
+                    );
+                }
 
                 variants.add(
                         new ExportProfile.Variant(
@@ -725,7 +948,7 @@ for (String defaultProfile : defaultProfiles) {
             }
 
             ExportProfile profile = new ExportProfile(
-                    name,
+                    profileName,
                     variants
             );
 
@@ -742,13 +965,24 @@ for (String defaultProfile : defaultProfiles) {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Erro ao salvar perfil:\n"
+                    "Não foi possível salvar o perfil:\n"
                     + ex.getMessage(),
                     "Erro",
                     JOptionPane.ERROR_MESSAGE
             );
         }
+
+    } catch (IOException ex) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Erro ao carregar perfis:\n"
+                + ex.getMessage(),
+                "Erro",
+                JOptionPane.ERROR_MESSAGE
+        );
     }
+}
 
     private void generateVariants() {
 
