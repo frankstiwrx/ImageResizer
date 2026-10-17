@@ -301,4 +301,78 @@ profiles.add(new ExportProfile(
 
         return new ExportProfile(name, variants);
     }
+    // EXCLUIR PERFIL PERSONALIZADO
+
+public static void deleteProfile(String name) throws IOException {
+
+    if (name == null || name.isBlank()) {
+        throw new IllegalArgumentException(
+                "Informe um nome de perfil válido."
+        );
+    }
+
+    // Perfis padrão não podem ser excluídos
+    List<String> defaultProfiles = List.of(
+            "Emblemas - 6 variacoes",
+            "Emblemas - Apenas R",
+            "Emblemas - Apenas F",
+            "Icones",
+            "Logos Web",
+            "Android - Icones"
+    );
+
+    for (String defaultProfile : defaultProfiles) {
+
+        if (defaultProfile.equalsIgnoreCase(name)) {
+
+            throw new IllegalArgumentException(
+                    "Os perfis padrão não podem ser excluídos."
+            );
+        }
+    }
+
+    // Utiliza a mesma regra de nomenclatura do saveProfile()
+    String normalizedName = Normalizer.normalize(
+            name,
+            Normalizer.Form.NFD
+    );
+
+    String fileName = normalizedName
+            .replaceAll("\\p{M}", "")
+            .toLowerCase(java.util.Locale.ROOT)
+            .replaceAll("[^a-z0-9_-]", "_");
+
+    if (fileName.isBlank()) {
+        throw new IOException("Nome de perfil inválido.");
+    }
+
+    Path destination = PROFILE_FOLDER.resolve(
+            fileName + ".properties"
+    );
+
+    // Verifica se o arquivo existe
+    if (!Files.isRegularFile(destination)) {
+
+        throw new IOException(
+                "O perfil não foi encontrado."
+        );
+    }
+
+    // Confirma que o arquivo pertence ao perfil solicitado
+    Properties properties = new Properties();
+
+    try (InputStream input = Files.newInputStream(destination)) {
+        properties.load(input);
+    }
+
+    if (!name.equals(properties.getProperty("name"))) {
+
+        throw new IOException(
+                "O arquivo não corresponde ao perfil selecionado."
+        );
+    }
+
+    // Exclui o arquivo do perfil
+    Files.delete(destination);
+}
 }
