@@ -1,6 +1,16 @@
+# Maven
 target/
+
+# Distribution files
+dist/
+
+# NetBeans
 nbproject/private/
+
+# Java
 *.class
 *.log
+
+# Operating system
 .DS_Store
 Thumbs.db
