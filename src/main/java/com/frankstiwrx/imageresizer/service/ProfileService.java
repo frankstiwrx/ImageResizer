@@ -72,6 +72,83 @@ public class ProfileService {
                         )
                 )
         ));
+        
+        // PERFIL: EMBLEMAS - APENAS R
+
+profiles.add(new ExportProfile(
+        "Emblemas - Apenas R",
+        List.of(
+                new ExportProfile.Variant(
+                        "e_{id}_r.png", 128, 128
+                ),
+                new ExportProfile.Variant(
+                        "e_{id}_r_l.png", 500, 500
+                ),
+                new ExportProfile.Variant(
+                        "e_{id}_r_ll.png", 500, 500
+                )
+        )
+));
+
+// PERFIL: EMBLEMAS - APENAS F
+
+profiles.add(new ExportProfile(
+        "Emblemas - Apenas F",
+        List.of(
+                new ExportProfile.Variant(
+                        "e_{id}_f.png", 128, 128
+                ),
+                new ExportProfile.Variant(
+                        "e_{id}_f_l.png", 500, 500
+                ),
+                new ExportProfile.Variant(
+                        "e_{id}_f_ll.png", 500, 500
+                )
+        )
+));
+
+// PERFIL: LOGOS WEB
+
+profiles.add(new ExportProfile(
+        "Logos Web",
+        List.of(
+                new ExportProfile.Variant(
+                        "{name}_small.png", 128, 128
+                ),
+                new ExportProfile.Variant(
+                        "{name}_medium.png", 256, 256
+                ),
+                new ExportProfile.Variant(
+                        "{name}_large.png", 512, 512
+                ),
+                new ExportProfile.Variant(
+                        "{name}_hd.png", 1024, 1024
+                )
+        )
+));
+
+// PERFIL: ANDROID - ICONES
+
+profiles.add(new ExportProfile(
+        "Android - Icones",
+        List.of(
+                new ExportProfile.Variant(
+                        "{name}_mdpi.png", 48, 48
+                ),
+                new ExportProfile.Variant(
+                        "{name}_hdpi.png", 72, 72
+                ),
+                new ExportProfile.Variant(
+                        "{name}_xhdpi.png", 96, 96
+                ),
+                new ExportProfile.Variant(
+                        "{name}_xxhdpi.png", 144, 144
+                ),
+                new ExportProfile.Variant(
+                        "{name}_xxxhdpi.png", 192, 192
+                )
+        )
+));
 
         Files.createDirectories(PROFILE_FOLDER);
 

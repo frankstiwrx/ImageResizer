@@ -601,16 +601,30 @@ public class MainFrame extends JFrame {
 
         name = name.trim();
 
-        if (name.equalsIgnoreCase("Emblemas - 6 variacoes")
-                || name.equalsIgnoreCase("Icones")) {
+        // Protege os perfis padrão da aplicação
 
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Esse é um perfil padrão. Escolha outro nome."
-            );
+String[] defaultProfiles = {
+    "Emblemas - 6 variacoes",
+    "Emblemas - Apenas R",
+    "Emblemas - Apenas F",
+    "Icones",
+    "Logos Web",
+    "Android - Icones"
+};
 
-            return;
-        }
+for (String defaultProfile : defaultProfiles) {
+
+    if (name.equalsIgnoreCase(defaultProfile)) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Esse é um perfil padrão da aplicação.\n"
+                + "Escolha outro nome para criar seu perfil."
+        );
+
+        return;
+    }
+}
 
         String example
                 = "{name}_128.png|128|128\n"
