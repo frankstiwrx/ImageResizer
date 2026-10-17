@@ -30,6 +30,19 @@ public class ImageProcessor {
                     "As dimensões devem ser maiores que zero."
             );
         }
+        if (width > 8192 || height > 8192) {
+
+    throw new IllegalArgumentException(
+            "A dimensão máxima permitida é 8192 pixels."
+    );
+}
+
+if ((long) width * height > 25_000_000L) {
+
+    throw new IllegalArgumentException(
+            "A imagem excede o limite de 25 milhões de pixels."
+    );
+}
 
         BufferedImage resized = new BufferedImage(
                 width,
@@ -96,6 +109,20 @@ public class ImageProcessor {
                 "As dimensões devem ser maiores que zero."
         );
     }
+    if (targetWidth > 8192 || targetHeight > 8192) {
+
+    throw new IllegalArgumentException(
+            "A dimensão máxima permitida é 8192 pixels."
+    );
+}
+
+if ((long) targetWidth * targetHeight > 25_000_000L) {
+
+    throw new IllegalArgumentException(
+            "A imagem excede o limite de 25 milhões de pixels."
+    );
+}
+    
 
     // Calcula a escala proporcional
     double scaleX = (double) targetWidth / original.getWidth();

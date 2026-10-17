@@ -36,13 +36,16 @@ import java.util.List;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
+import javax.swing.ImageIcon;
+import javax.swing.SwingConstants;
+
 public class MainFrame extends JFrame {
 
     private JButton btnSelectImage;
     private JButton btnResize;
     private JButton btnVariants;
     private JButton btnBatch;
-    
+
     private JButton btnProfiles;
 
     private JTextField txtWidth;
@@ -53,6 +56,8 @@ public class MainFrame extends JFrame {
 
     private JLabel lblFileName;
     private JLabel lblOriginalSize;
+
+    private JLabel lblPreview;
 
     private File selectedFile;
     private BufferedImage originalImage;
@@ -68,10 +73,9 @@ public class MainFrame extends JFrame {
 
         setTitle("ImageResizer");
 
-        setSize(800, 500);
+        setSize(1000, 600);
 
-        setMinimumSize(new Dimension(650, 400));
-
+        setMinimumSize(new Dimension(900, 550));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         setLocationRelativeTo(null);
@@ -142,6 +146,31 @@ public class MainFrame extends JFrame {
 
         add(centerPanel, BorderLayout.CENTER);
 
+        // PAINEL DE PRÉ-VISUALIZAÇÃO
+        JPanel previewPanel = new JPanel(new BorderLayout());
+
+        previewPanel.setPreferredSize(
+                new Dimension(260, 260)
+        );
+
+        previewPanel.setBorder(
+                BorderFactory.createTitledBorder(
+                        "Pré-visualização"
+                )
+        );
+
+        lblPreview = new JLabel(
+                "Nenhuma imagem",
+                SwingConstants.CENTER
+        );
+
+        previewPanel.add(
+                lblPreview,
+                BorderLayout.CENTER
+        );
+
+        add(previewPanel, BorderLayout.EAST);
+
         // BOTÕES
         JPanel buttonsPanel = new JPanel(new FlowLayout());
 
@@ -154,19 +183,19 @@ public class MainFrame extends JFrame {
         btnResize = new JButton("Redimensionar");
 
         btnVariants = new JButton("Gerar variações");
-        
+
         btnBatch = new JButton("Processar pasta");
-        
+
         btnProfiles = new JButton("Gerenciar perfis");
 
         buttonsPanel.add(btnSelectImage);
 
         buttonsPanel.add(btnResize);
-        
+
         buttonsPanel.add(btnBatch);
 
         buttonsPanel.add(btnVariants);
-        
+
         buttonsPanel.add(btnProfiles);
 
         add(buttonsPanel, BorderLayout.SOUTH);
@@ -179,11 +208,11 @@ public class MainFrame extends JFrame {
         btnApplyScale.addActionListener(e -> applyScale());
 
         txtScale.addActionListener(e -> applyScale());
-        
+
         btnBatch.addActionListener(e -> processBatch());
-        
+
         btnVariants.addActionListener(e -> generateVariants());
-        
+
         btnProfiles.addActionListener(e -> manageProfiles());
 
     }
@@ -310,6 +339,7 @@ public class MainFrame extends JFrame {
                 );
 
                 txtScale.setText("100");
+                updatePreview();
 
             } catch (IOException ex) {
 
@@ -443,353 +473,58 @@ public class MainFrame extends JFrame {
 
         }
     }
-    
+
     private void processBatch() {
 
-    // Solicita a porcentagem de redimensionamento
-    double percentage;
+        // Solicita a porcentagem de redimensionamento
+        double percentage;
 
-    try {
-
-        String input = JOptionPane.showInputDialog(
-                this,
-                "Informe a escala percentual:\n"
-                + "50 = metade | 100 = original | 200 = dobro",
-                txtScale.getText()
-        );
-
-        if (input == null) {
-            return;
-        }
-
-        percentage = Double.parseDouble(
-                input.trim().replace(",", ".")
-        );
-
-        if (!Double.isFinite(percentage) || percentage <= 0) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Informe uma porcentagem válida maior que zero."
-            );
-
-            return;
-        }
-
-    } catch (NumberFormatException ex) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Porcentagem inválida.",
-                "Erro",
-                JOptionPane.ERROR_MESSAGE
-        );
-
-        return;
-    }
-
-    // Seleciona a pasta de imagens
-    JFileChooser chooser = new JFileChooser();
-
-    chooser.setDialogTitle("Selecionar pasta de imagens");
-
-    chooser.setFileSelectionMode(
-            JFileChooser.DIRECTORIES_ONLY
-    );
-
-    int result = chooser.showOpenDialog(this);
-
-    if (result != JFileChooser.APPROVE_OPTION) {
-        return;
-    }
-
-    File folder = chooser.getSelectedFile();
-
-    btnBatch.setEnabled(false);
-
-    // Processamento em segundo plano
-    SwingWorker<BatchProcessor.BatchResult, Void> worker =
-            new SwingWorker<>() {
-
-        @Override
-        protected BatchProcessor.BatchResult doInBackground()
-                throws Exception {
-
-            return BatchProcessor.resizeFolder(
-                    folder,
-                    percentage
-            );
-        }
-
-        @Override
-        protected void done() {
-
-            btnBatch.setEnabled(true);
-
-            try {
-
-                BatchProcessor.BatchResult result = get();
-
-                JOptionPane.showMessageDialog(
-                        MainFrame.this,
-                        "Processamento concluído!\n\n"
-                        + "Processadas: " + result.processed()
-                        + "\nIgnoradas: " + result.skipped()
-                        + "\nFalhas: " + result.failed()
-                        + "\n\nPasta: redimensionadas"
-                );
-
-            } catch (Exception ex) {
-
-                JOptionPane.showMessageDialog(
-                        MainFrame.this,
-                        "Erro no processamento: "
-                        + ex.getMessage(),
-                        "Erro",
-                        JOptionPane.ERROR_MESSAGE
-                );
-            }
-        }
-    };
-
-    worker.execute();
-}
-    
-    private void manageProfiles() {
-
-    String name = JOptionPane.showInputDialog(
-            this,
-            "Nome do perfil:\n"
-            + "Informe um nome novo ou um perfil personalizado existente.",
-            "Gerenciar perfis",
-            JOptionPane.QUESTION_MESSAGE
-    );
-
-    if (name == null || name.isBlank()) {
-        return;
-    }
-
-    name = name.trim();
-
-    if (name.equalsIgnoreCase("Emblemas - 6 variacoes")
-            || name.equalsIgnoreCase("Icones")) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Esse é um perfil padrão. Escolha outro nome."
-        );
-
-        return;
-    }
-
-    String example =
-            "{name}_128.png|128|128\n"
-            + "{name}_256.png|256|256\n"
-            + "{name}_512.png|512|512";
-
-    try {
-
-        for (ExportProfile profile :
-                ProfileService.listProfiles()) {
-
-            if (profile.name().equalsIgnoreCase(name)) {
-
-                StringBuilder existing = new StringBuilder();
-
-                for (ExportProfile.Variant variant :
-                        profile.variants()) {
-
-                    existing.append(variant.template())
-                            .append("|")
-                            .append(variant.width())
-                            .append("|")
-                            .append(variant.height())
-                            .append("\n");
-                }
-
-                example = existing.toString();
-                break;
-            }
-        }
-
-    } catch (IOException ex) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Erro",
-                JOptionPane.ERROR_MESSAGE
-        );
-
-        return;
-    }
-
-    JTextArea textArea = new JTextArea(example, 12, 45);
-
-    JScrollPane scrollPane = new JScrollPane(textArea);
-
-    int option = JOptionPane.showConfirmDialog(
-            this,
-            scrollPane,
-            "Variações: nome|largura|altura",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE
-    );
-
-    if (option != JOptionPane.OK_OPTION) {
-        return;
-    }
-
-    try {
-
-        List<ExportProfile.Variant> variants =
-                new ArrayList<>();
-
-        String[] lines = textArea.getText().split("\\R");
-
-        for (String line : lines) {
-
-            if (line.isBlank()) {
-                continue;
-            }
-
-            String[] parts = line.split("\\|", -1);
-
-            if (parts.length != 3) {
-                throw new IllegalArgumentException(
-                        "Formato inválido: " + line
-                );
-            }
-
-            String template = parts[0].trim();
-
-            int width = Integer.parseInt(
-                    parts[1].trim()
-            );
-
-            int height = Integer.parseInt(
-                    parts[2].trim()
-            );
-
-            variants.add(
-                    new ExportProfile.Variant(
-                            template,
-                            width,
-                            height
-                    )
-            );
-        }
-
-        ExportProfile profile = new ExportProfile(
-                name,
-                variants
-        );
-
-        ProfileService.saveProfile(profile);
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Perfil salvo com sucesso!\n\n"
-                + "Nome: " + profile.name()
-                + "\nVariações: " + variants.size()
-        );
-
-    } catch (IOException | IllegalArgumentException ex) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Erro ao salvar perfil:\n"
-                + ex.getMessage(),
-                "Erro",
-                JOptionPane.ERROR_MESSAGE
-        );
-    }
-}
-    
- private void generateVariants() {
-
-    if (selectedFile == null) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Selecione uma imagem primeiro."
-        );
-
-        return;
-    }
-
-    try {
-
-        List<ExportProfile> profiles =
-                ProfileService.listProfiles();
-
-        ExportProfile selectedProfile =
-                (ExportProfile) JOptionPane.showInputDialog(
-                        this,
-                        "Selecione o perfil de exportação:",
-                        "Gerar variações",
-                        JOptionPane.QUESTION_MESSAGE,
-                        null,
-                        profiles.toArray(),
-                        profiles.get(0)
-                );
-
-        if (selectedProfile == null) {
-            return;
-        }
-
-        int parsedId = 0;
-
-        boolean requiresId = selectedProfile.variants()
-                .stream()
-                .anyMatch(variant ->
-                        variant.template().contains("{id}")
-                );
-
-        if (requiresId) {
+        try {
 
             String input = JOptionPane.showInputDialog(
                     this,
-                    "Informe o identificador numérico:"
+                    "Informe a escala percentual:\n"
+                    + "50 = metade | 100 = original | 200 = dobro",
+                    txtScale.getText()
             );
 
             if (input == null) {
                 return;
             }
 
-            try {
+            percentage = Double.parseDouble(
+                    input.trim().replace(",", ".")
+            );
 
-                parsedId = Integer.parseInt(input.trim());
-
-                if (parsedId < 0 || parsedId > 999999) {
-                    throw new NumberFormatException();
-                }
-
-            } catch (NumberFormatException ex) {
+            if (!Double.isFinite(percentage) || percentage <= 0) {
 
                 JOptionPane.showMessageDialog(
                         this,
-                        "Informe um ID entre 0 e 999999."
+                        "Informe uma porcentagem válida maior que zero."
                 );
 
                 return;
             }
+
+        } catch (NumberFormatException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Porcentagem inválida.",
+                    "Erro",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            return;
         }
 
-        final int imageId = parsedId;
-
+        // Seleciona a pasta de imagens
         JFileChooser chooser = new JFileChooser();
 
-        chooser.setDialogTitle(
-                "Selecione a pasta de destino"
-        );
+        chooser.setDialogTitle("Selecionar pasta de imagens");
 
         chooser.setFileSelectionMode(
                 JFileChooser.DIRECTORIES_ONLY
-        );
-
-        chooser.setCurrentDirectory(
-                selectedFile.getParentFile()
         );
 
         int result = chooser.showOpenDialog(this);
@@ -798,56 +533,48 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        Path outputFolder =
-                chooser.getSelectedFile().toPath();
+        File folder = chooser.getSelectedFile();
 
-        btnVariants.setEnabled(false);
+        btnBatch.setEnabled(false);
 
-        SwingWorker<List<Path>, Void> worker =
-                new SwingWorker<>() {
+        // Processamento em segundo plano
+        SwingWorker<BatchProcessor.BatchResult, Void> worker
+                = new SwingWorker<>() {
 
             @Override
-            protected List<Path> doInBackground()
+            protected BatchProcessor.BatchResult doInBackground()
                     throws Exception {
 
-                return ImageVariantGenerator.generate(
-                        selectedFile,
-                        outputFolder,
-                        imageId,
-                        selectedProfile
+                return BatchProcessor.resizeFolder(
+                        folder,
+                        percentage
                 );
             }
 
             @Override
             protected void done() {
 
-                btnVariants.setEnabled(true);
+                btnBatch.setEnabled(true);
 
                 try {
 
-                    List<Path> generated = get();
+                    BatchProcessor.BatchResult result = get();
 
                     JOptionPane.showMessageDialog(
                             MainFrame.this,
-                            "Variações geradas com sucesso!\n\n"
-                            + "Perfil: "
-                            + selectedProfile.name()
-                            + "\nArquivos: "
-                            + generated.size()
-                            + "\nDestino:\n"
-                            + outputFolder
+                            "Processamento concluído!\n\n"
+                            + "Processadas: " + result.processed()
+                            + "\nIgnoradas: " + result.skipped()
+                            + "\nFalhas: " + result.failed()
+                            + "\n\nPasta: redimensionadas"
                     );
 
                 } catch (Exception ex) {
 
-                    Throwable cause = ex.getCause();
-
                     JOptionPane.showMessageDialog(
                             MainFrame.this,
-                            "Erro ao gerar variações:\n"
-                            + (cause != null
-                                    ? cause.getMessage()
-                                    : ex.getMessage()),
+                            "Erro no processamento: "
+                            + ex.getMessage(),
                             "Erro",
                             JOptionPane.ERROR_MESSAGE
                     );
@@ -856,16 +583,344 @@ public class MainFrame extends JFrame {
         };
 
         worker.execute();
-
-    } catch (IOException ex) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                ex.getMessage(),
-                "Erro",
-                JOptionPane.ERROR_MESSAGE
-        );
     }
-}
-    
+
+    private void manageProfiles() {
+
+        String name = JOptionPane.showInputDialog(
+                this,
+                "Nome do perfil:\n"
+                + "Informe um nome novo ou um perfil personalizado existente.",
+                "Gerenciar perfis",
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (name == null || name.isBlank()) {
+            return;
+        }
+
+        name = name.trim();
+
+        if (name.equalsIgnoreCase("Emblemas - 6 variacoes")
+                || name.equalsIgnoreCase("Icones")) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Esse é um perfil padrão. Escolha outro nome."
+            );
+
+            return;
+        }
+
+        String example
+                = "{name}_128.png|128|128\n"
+                + "{name}_256.png|256|256\n"
+                + "{name}_512.png|512|512";
+
+        try {
+
+            for (ExportProfile profile
+                    : ProfileService.listProfiles()) {
+
+                if (profile.name().equalsIgnoreCase(name)) {
+
+                    StringBuilder existing = new StringBuilder();
+
+                    for (ExportProfile.Variant variant
+                            : profile.variants()) {
+
+                        existing.append(variant.template())
+                                .append("|")
+                                .append(variant.width())
+                                .append("|")
+                                .append(variant.height())
+                                .append("\n");
+                    }
+
+                    example = existing.toString();
+                    break;
+                }
+            }
+
+        } catch (IOException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Erro",
+                    JOptionPane.ERROR_MESSAGE
+            );
+
+            return;
+        }
+
+        JTextArea textArea = new JTextArea(example, 12, 45);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        int option = JOptionPane.showConfirmDialog(
+                this,
+                scrollPane,
+                "Variações: nome|largura|altura",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (option != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        try {
+
+            List<ExportProfile.Variant> variants
+                    = new ArrayList<>();
+
+            String[] lines = textArea.getText().split("\\R");
+
+            for (String line : lines) {
+
+                if (line.isBlank()) {
+                    continue;
+                }
+
+                String[] parts = line.split("\\|", -1);
+
+                if (parts.length != 3) {
+                    throw new IllegalArgumentException(
+                            "Formato inválido: " + line
+                    );
+                }
+
+                String template = parts[0].trim();
+
+                int width = Integer.parseInt(
+                        parts[1].trim()
+                );
+
+                int height = Integer.parseInt(
+                        parts[2].trim()
+                );
+
+                variants.add(
+                        new ExportProfile.Variant(
+                                template,
+                                width,
+                                height
+                        )
+                );
+            }
+
+            ExportProfile profile = new ExportProfile(
+                    name,
+                    variants
+            );
+
+            ProfileService.saveProfile(profile);
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Perfil salvo com sucesso!\n\n"
+                    + "Nome: " + profile.name()
+                    + "\nVariações: " + variants.size()
+            );
+
+        } catch (IOException | IllegalArgumentException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Erro ao salvar perfil:\n"
+                    + ex.getMessage(),
+                    "Erro",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    private void generateVariants() {
+
+        if (selectedFile == null) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Selecione uma imagem primeiro."
+            );
+
+            return;
+        }
+
+        try {
+
+            List<ExportProfile> profiles
+                    = ProfileService.listProfiles();
+
+            ExportProfile selectedProfile
+                    = (ExportProfile) JOptionPane.showInputDialog(
+                            this,
+                            "Selecione o perfil de exportação:",
+                            "Gerar variações",
+                            JOptionPane.QUESTION_MESSAGE,
+                            null,
+                            profiles.toArray(),
+                            profiles.get(0)
+                    );
+
+            if (selectedProfile == null) {
+                return;
+            }
+
+            int parsedId = 0;
+
+            boolean requiresId = selectedProfile.variants()
+                    .stream()
+                    .anyMatch(variant
+                            -> variant.template().contains("{id}")
+                    );
+
+            if (requiresId) {
+
+                String input = JOptionPane.showInputDialog(
+                        this,
+                        "Informe o identificador numérico:"
+                );
+
+                if (input == null) {
+                    return;
+                }
+
+                try {
+
+                    parsedId = Integer.parseInt(input.trim());
+
+                    if (parsedId < 0 || parsedId > 999999) {
+                        throw new NumberFormatException();
+                    }
+
+                } catch (NumberFormatException ex) {
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Informe um ID entre 0 e 999999."
+                    );
+
+                    return;
+                }
+            }
+
+            final int imageId = parsedId;
+
+            JFileChooser chooser = new JFileChooser();
+
+            chooser.setDialogTitle(
+                    "Selecione a pasta de destino"
+            );
+
+            chooser.setFileSelectionMode(
+                    JFileChooser.DIRECTORIES_ONLY
+            );
+
+            chooser.setCurrentDirectory(
+                    selectedFile.getParentFile()
+            );
+
+            int result = chooser.showOpenDialog(this);
+
+            if (result != JFileChooser.APPROVE_OPTION) {
+                return;
+            }
+
+            Path outputFolder
+                    = chooser.getSelectedFile().toPath();
+
+            btnVariants.setEnabled(false);
+
+            SwingWorker<List<Path>, Void> worker
+                    = new SwingWorker<>() {
+
+                @Override
+                protected List<Path> doInBackground()
+                        throws Exception {
+
+                    return ImageVariantGenerator.generate(
+                            selectedFile,
+                            outputFolder,
+                            imageId,
+                            selectedProfile
+                    );
+                }
+
+                @Override
+                protected void done() {
+
+                    btnVariants.setEnabled(true);
+
+                    try {
+
+                        List<Path> generated = get();
+
+                        JOptionPane.showMessageDialog(
+                                MainFrame.this,
+                                "Variações geradas com sucesso!\n\n"
+                                + "Perfil: "
+                                + selectedProfile.name()
+                                + "\nArquivos: "
+                                + generated.size()
+                                + "\nDestino:\n"
+                                + outputFolder
+                        );
+
+                    } catch (Exception ex) {
+
+                        Throwable cause = ex.getCause();
+
+                        JOptionPane.showMessageDialog(
+                                MainFrame.this,
+                                "Erro ao gerar variações:\n"
+                                + (cause != null
+                                        ? cause.getMessage()
+                                        : ex.getMessage()),
+                                "Erro",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                    }
+                }
+            };
+
+            worker.execute();
+
+        } catch (IOException ex) {
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    ex.getMessage(),
+                    "Erro",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
+    }
+
+    private void updatePreview() {
+
+        if (originalImage == null) {
+
+            lblPreview.setIcon(null);
+
+            lblPreview.setText("Nenhuma imagem");
+
+            return;
+        }
+
+        BufferedImage preview
+                = ImageProcessor.resizeToFit(
+                        originalImage,
+                        220,
+                        220
+                );
+
+        lblPreview.setIcon(
+                new ImageIcon(preview)
+        );
+
+        lblPreview.setText("");
+    }
+
 }
